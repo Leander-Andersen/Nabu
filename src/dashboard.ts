@@ -118,6 +118,7 @@ export function renderDashboard(): string {
       <input type="email" id="new-recipient" placeholder="add@example.com"
              style="max-width:320px" autocomplete="off">
       <button id="add-recipient">Add</button>
+      <button id="test-all">Send test to all</button>
       <span class="meta" id="recipients-note"></span>
     </div>
   </section>
@@ -186,6 +187,8 @@ function describeRun(ok, body) {
   return "Ran — all " + s.found + " chapter(s) had already been sent.";
 }
 
+const testResults = {};
+
 function renderRecipients() {
   const box = $("recipients");
   box.replaceChildren();
@@ -194,13 +197,59 @@ function renderRecipients() {
     return;
   }
   for (const address of state.recipients) {
+    const children = [el("span", { cls: "grow", text: address })];
+
+    const result = testResults[address];
+    if (result === "pending") {
+      children.push(el("span", { cls: "pill", text: "sending…" }));
+    } else if (result) {
+      const pill = el("span", {
+        cls: "pill " + (result.ok ? "ok" : "bad"),
+        text: result.ok ? "delivered" : "failed",
+      });
+      // The provider's own words, on hover — usually names the exact problem.
+      if (result.error) pill.title = result.error;
+      children.push(pill);
+    }
+
+    const test = el("button", { cls: "link", text: "Test" });
+    test.onclick = () => sendTest([address]);
     const remove = el("button", { cls: "link", text: "Remove" });
     remove.onclick = () => saveRecipients(state.recipients.filter((r) => r !== address));
-    box.append(el("div", {
-      cls: "row",
-      children: [el("span", { cls: "grow", text: address }), remove],
-    }));
+    children.push(test, remove);
+
+    box.append(el("div", { cls: "row", children }));
   }
+}
+
+async function sendTest(addresses) {
+  for (const address of addresses) testResults[address] = "pending";
+  renderRecipients();
+  $("recipients-note").textContent = "Sending test email…";
+
+  try {
+    const res = await fetch("/api/test-email", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ recipients: addresses }),
+    });
+    const body = await res.json();
+    if (!res.ok && !body.results) {
+      for (const address of addresses) delete testResults[address];
+      $("recipients-note").textContent = body.error || "Failed to send.";
+      renderRecipients();
+      return;
+    }
+    for (const result of body.results) testResults[result.recipient] = result;
+    const failed = body.results.filter((r) => !r.ok);
+    $("recipients-note").textContent = failed.length
+      ? failed.length + " failed — " + failed[0].error
+      : "Test email sent. Check the inbox (and spam).";
+  } catch (err) {
+    for (const address of addresses) delete testResults[address];
+    $("recipients-note").textContent = String(err);
+  }
+  renderRecipients();
 }
 
 async function saveRecipients(next) {
@@ -334,6 +383,9 @@ $("add-recipient").onclick = () => {
   if (state.recipients.includes(value)) { $("recipients-note").textContent = "Already listed."; return; }
   input.value = "";
   saveRecipients([...state.recipients, value]);
+};
+$("test-all").onclick = () => {
+  if (state.recipients.length) sendTest([...state.recipients]);
 };
 $("new-recipient").addEventListener("keydown", (e) => {
   if (e.key === "Enter") { e.preventDefault(); $("add-recipient").click(); }

@@ -7,7 +7,7 @@ import {
 } from "./auth";
 import { OVERLAP_SECONDS, SEED_WINDOW_HOURS } from "./constants";
 import { renderDashboard, renderLogin } from "./dashboard";
-import { buildHtml, buildSubject, buildText, toDigestItem } from "./digest";
+import { buildHtml, buildSubject, buildText, buildTestEmail, toDigestItem } from "./digest";
 import { errorMessage, log } from "./log";
 import { assertMailConfig, sendDigest } from "./mail";
 import {
@@ -258,6 +258,48 @@ async function handleRequest(request: Request, env: Env): Promise<Response> {
 
     await setRecipients(env, cleaned);
     return json({ ok: true, recipients: cleaned });
+  }
+
+  if (path === "/api/test-email" && request.method === "POST") {
+    const body = (await request.json().catch(() => null)) as { recipients?: unknown } | null;
+    const requested = Array.isArray(body?.recipients)
+      ? body.recipients.filter((v): v is string => typeof v === "string")
+      : null;
+
+    const targets = requested?.length ? requested : await getRecipients(env);
+    if (targets.length === 0) {
+      return json({ error: "no recipients configured" }, 400);
+    }
+
+    let provider;
+    try {
+      provider = await assertMailConfig(env);
+    } catch (err) {
+      return json({ error: errorMessage(err) }, 400);
+    }
+
+    // One send per address, so a single bad recipient is identifiable rather
+    // than hidden inside an aggregate "1 failed" from the provider.
+    const results = [];
+    for (const recipient of targets) {
+      const mail = buildTestEmail({
+        sender: env.SENDER_ADDRESS,
+        provider,
+        recipient,
+      });
+      try {
+        await sendDigest(env, provider, mail.subject, mail.html, mail.text, [recipient]);
+        results.push({ recipient, ok: true });
+      } catch (err) {
+        results.push({ recipient, ok: false, error: errorMessage(err) });
+      }
+    }
+
+    log("test_email", {
+      sent: results.filter((r) => r.ok).length,
+      failed: results.filter((r) => !r.ok).length,
+    });
+    return json({ ok: results.every((r) => r.ok), results });
   }
 
   if (path === "/api/series/refresh" && request.method === "POST") {

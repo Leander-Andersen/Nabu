@@ -393,7 +393,8 @@ showing:
 - **Run now**, with the run's full JSON summary rendered underneath: what it found, what
   was new, whether mail went out, and every chapter in the digest as a link.
 - **Recipients**, add and remove, as many as you like. Changes take effect on the next
-  run — no redeploy.
+  run — no redeploy. Each row has a **Test** button, and **Send test to all** does the
+  lot; results appear per address (hover a failure for the provider's own words).
 - **Series**, sorted by most recent chapter, each linking to it. *Sync followed series*
   pulls your full follows list from MangaDex so quiet series appear too, rather than only
   the ones that have published since you deployed.
@@ -430,7 +431,19 @@ Every route takes `Authorization: Bearer $ADMIN_TOKEN`.
 | `GET /api/state` | runs, series, recipients, config in one payload |
 | `POST /api/run` | run now; returns the same summary the page shows |
 | `PUT /api/recipients` | `{"recipients":["a@b.co","c@d.co"]}` — validated, trimmed, deduped |
+| `POST /api/test-email` | `{"recipients":["a@b.co"]}`, or omit to test every configured address |
 | `POST /api/series/refresh` | pull the follows list from MangaDex |
+
+### Testing delivery
+
+The test email is sent **once per address**, not once with everybody in the `to` field.
+That costs a few extra API calls and buys the thing that matters: when one address fails,
+you learn *which*, instead of an aggregate `1 failed` that could be any of them. The
+others still go out. It reports the provider's verbatim error, so an unverified sender
+says so in as many words.
+
+It touches nothing else — no `last_run`, no dedupe entries, no run history. Safe to press
+whenever.
 
 ### A note on recipients
 

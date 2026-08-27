@@ -107,3 +107,46 @@ function escapeHtml(value: string): string {
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#39;");
 }
+
+/**
+ * The test email. Deliberately shaped like a real digest so it also previews
+ * how one will look, and states the config that produced it — a test that
+ * arrives but is unreadable, or came from the wrong sender, is a failed test.
+ */
+export function buildTestEmail(config: {
+  sender: string;
+  provider: string;
+  recipient: string;
+}): { subject: string; html: string; text: string } {
+  const sentAt = new Date().toISOString().replace("T", " ").slice(0, 19) + " UTC";
+  const rows = [
+    ["To", config.recipient],
+    ["From", config.sender],
+    ["Via", config.provider],
+    ["Sent", sentAt],
+  ];
+
+  const html = [
+    '<div style="font-family:-apple-system,Segoe UI,Helvetica,Arial,sans-serif;font-size:15px;line-height:1.5;color:#1a1a1a;">',
+    "<p><strong>This is a test email from nabu.</strong></p>",
+    "<p>If you are reading this, delivery to this address works and you will receive",
+    " chapter digests here.</p>",
+    '<table style="border-collapse:collapse;font-size:14px;margin:20px 0;">',
+    ...rows.map(
+      ([label, value]) =>
+        `<tr><td style="padding:3px 16px 3px 0;color:#777;">${escapeHtml(label ?? "")}</td>` +
+        `<td style="padding:3px 0;">${escapeHtml(value ?? "")}</td></tr>`,
+    ),
+    "</table>",
+    '<p style="margin-top:24px;font-size:12px;color:#777;">Sent by nabu. No chapters were involved.</p>',
+    "</div>",
+  ].join("\n");
+
+  const text =
+    "This is a test email from nabu.\n\n" +
+    "If you are reading this, delivery to this address works.\n\n" +
+    rows.map(([label, value]) => `${label}: ${value}`).join("\n") +
+    "\n\n--\nSent by nabu. No chapters were involved.\n";
+
+  return { subject: "nabu test email", html, text };
+}
