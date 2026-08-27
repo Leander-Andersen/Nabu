@@ -63,12 +63,18 @@ pre { background: var(--bg); border: 1px solid var(--line); border-radius: 8px;
 details summary { cursor: pointer; color: var(--muted); font-size: 13px; padding: 8px 16px; }
 `;
 
+/** A heart, in the accent colour. Served at /favicon.svg. */
+export const FAVICON_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+<path fill="#ff6740" d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+</svg>`;
+
 function page(title: string, body: string): string {
   return `<!doctype html>
 <html lang="en"><head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex, nofollow">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <title>${title}</title>
 <style>${STYLES}</style>
 </head><body>${body}</body></html>`;
@@ -76,9 +82,9 @@ function page(title: string, body: string): string {
 
 export function renderLogin(error?: string): string {
   return page(
-    "nabu",
+    "Nabu",
     `<div class="login">
-      <h1>nabu</h1>
+      <h1>Nabu</h1>
       <p class="sub">MangaDex chapter notifier</p>
       ${error ? `<p class="err">${error}</p>` : ""}
       <form method="post" action="/login">
@@ -92,10 +98,10 @@ export function renderLogin(error?: string): string {
 
 export function renderDashboard(): string {
   return page(
-    "nabu",
+    "Nabu",
     `<div class="wrap">
   <header>
-    <h1>nabu</h1>
+    <h1>Nabu</h1>
     <span id="status" class="pill">loading…</span>
     <span class="grow" style="flex:1"></span>
     <form method="post" action="/logout"><button class="link" type="submit">Sign out</button></form>

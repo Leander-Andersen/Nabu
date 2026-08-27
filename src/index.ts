@@ -6,7 +6,7 @@ import {
   isAuthorized,
 } from "./auth";
 import { OVERLAP_SECONDS, SEED_WINDOW_HOURS } from "./constants";
-import { renderDashboard, renderLogin } from "./dashboard";
+import { FAVICON_SVG, renderDashboard, renderLogin } from "./dashboard";
 import { buildHtml, buildSubject, buildText, buildTestEmail, toDigestItem } from "./digest";
 import { errorMessage, log } from "./log";
 import { assertMailConfig, sendDigest } from "./mail";
@@ -164,6 +164,16 @@ async function handleRequest(request: Request, env: Env): Promise<Response> {
 
   if (!(await dashboardSecret(env))) {
     return new Response("Not found\n", { status: 404 });
+  }
+
+  // Before the auth check: the login page needs its icon too.
+  if (path === "/favicon.svg" && request.method === "GET") {
+    return new Response(FAVICON_SVG, {
+      headers: {
+        "content-type": "image/svg+xml; charset=utf-8",
+        "cache-control": "public, max-age=86400",
+      },
+    });
   }
 
   if (path === "/login" && request.method === "POST") {

@@ -71,7 +71,7 @@ export function buildText(items: DigestItem[]): string {
     const title = item.chapterTitle ? `: ${item.chapterTitle}` : "";
     return `${item.seriesTitle}\n  ${item.chapterLabel}${title}\n  ${item.url}`;
   });
-  return `${lines.join("\n\n")}\n\n--\nSent by nabu.\n`;
+  return `${lines.join("\n\n")}\n\n--\nSent by Nabu.\n`;
 }
 
 export function buildHtml(items: DigestItem[]): string {
@@ -94,7 +94,7 @@ export function buildHtml(items: DigestItem[]): string {
     '<ul style="list-style:none;padding:0;margin:0;">',
     rows,
     "</ul>",
-    '<p style="margin-top:24px;font-size:12px;color:#777;">Sent by nabu.</p>',
+    '<p style="margin-top:24px;font-size:12px;color:#777;">Sent by Nabu.</p>',
     "</div>",
   ].join("\n");
 }
@@ -128,7 +128,7 @@ export function buildTestEmail(config: {
 
   const html = [
     '<div style="font-family:-apple-system,Segoe UI,Helvetica,Arial,sans-serif;font-size:15px;line-height:1.5;color:#1a1a1a;">',
-    "<p><strong>This is a test email from nabu.</strong></p>",
+    "<p><strong>This is a test email from Nabu.</strong></p>",
     "<p>If you are reading this, delivery to this address works and you will receive",
     " chapter digests here.</p>",
     '<table style="border-collapse:collapse;font-size:14px;margin:20px 0;">',
@@ -138,15 +138,15 @@ export function buildTestEmail(config: {
         `<td style="padding:3px 0;">${escapeHtml(value ?? "")}</td></tr>`,
     ),
     "</table>",
-    '<p style="margin-top:24px;font-size:12px;color:#777;">Sent by nabu. No chapters were involved.</p>',
+    '<p style="margin-top:24px;font-size:12px;color:#777;">Sent by Nabu. No chapters were involved.</p>',
     "</div>",
   ].join("\n");
 
   const text =
-    "This is a test email from nabu.\n\n" +
+    "This is a test email from Nabu.\n\n" +
     "If you are reading this, delivery to this address works.\n\n" +
     rows.map(([label, value]) => `${label}: ${value}`).join("\n") +
-    "\n\n--\nSent by nabu. No chapters were involved.\n";
+    "\n\n--\nSent by Nabu. No chapters were involved.\n";
 
-  return { subject: "nabu test email", html, text };
+  return { subject: "Nabu test email", html, text };
 }
