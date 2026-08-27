@@ -150,3 +150,48 @@ export function isReadableOnMangaDex(chapter: Chapter): boolean {
   const external = chapter.attributes.externalUrl;
   return external === null || external === undefined || external === "";
 }
+
+/**
+ * The full followed-series list, used by the dashboard so series with no recent
+ * activity still appear. Separate from the chapter feed, which only surfaces a
+ * series when it has published something.
+ */
+export async function fetchFollowedManga(
+  accessToken: string,
+  languages: string[],
+): Promise<{ id: string; title: string }[]> {
+  const out: { id: string; title: string }[] = [];
+  let offset = 0;
+
+  for (let page = 0; page < MAX_PAGES; page++) {
+    const url = new URL(`${API_BASE}/user/follows/manga`);
+    url.searchParams.set("limit", "100");
+    url.searchParams.set("offset", String(offset));
+
+    const res = await fetch(url, {
+      headers: { authorization: `Bearer ${accessToken}`, "user-agent": USER_AGENT },
+    });
+    if (!res.ok) {
+      throw new Error(`MangaDex follows returned ${res.status}: ${await safeText(res)}`);
+    }
+
+    const body = (await res.json()) as {
+      data: { id: string; attributes?: { title?: Record<string, string> } }[];
+      total: number;
+    };
+
+    for (const manga of body.data) {
+      const titles = manga.attributes?.title ?? {};
+      const title =
+        [...languages, "en", "ja-ro", "ja"].map((l) => titles[l]).find(Boolean) ??
+        Object.values(titles)[0] ??
+        "Untitled";
+      out.push({ id: manga.id, title });
+    }
+
+    offset += body.data.length;
+    if (body.data.length === 0 || offset >= body.total) break;
+  }
+
+  return out;
+}

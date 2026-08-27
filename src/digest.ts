@@ -6,7 +6,9 @@ const MAX_SUBJECT_LENGTH = 78;
 export function toDigestItem(chapter: Chapter, languages: string[]): DigestItem {
   return {
     chapterId: chapter.id,
+    seriesId: chapter.relationships.find((rel) => rel.type === "manga")?.id ?? "",
     seriesTitle: seriesTitle(chapter, languages),
+    publishAt: chapter.attributes.publishAt,
     chapterLabel: chapterLabel(chapter),
     chapterTitle: chapter.attributes.title?.trim() || null,
     url: `https://mangadex.org/chapter/${chapter.id}`,

@@ -1,3 +1,4 @@
+import { parseAddresses } from "./util";
 import type { Chapter, Env } from "./types";
 
 const KEY_REFRESH_TOKEN = "refresh_token";
@@ -54,4 +55,84 @@ export async function markSeen(env: Env, chapterIds: string[]): Promise<void> {
       env.NABU_STATE.put(seenKey(id), "1", { expirationTtl: SEEN_TTL_SECONDS }),
     ),
   );
+}
+
+// ---------------------------------------------------------------------------
+// Dashboard state: run history, per-series activity, and the recipient list.
+// All three live in KV because the dashboard has to be able to read and (for
+// recipients) write them at runtime — a wrangler.toml var is fixed at deploy.
+// ---------------------------------------------------------------------------
+
+const KEY_RUN_LOG = "run_log";
+const KEY_SERIES = "series_index";
+const KEY_RECIPIENTS = "recipients";
+
+/** Runs kept in the log. Enough to see a pattern, small enough for one KV value. */
+const RUN_LOG_LIMIT = 50;
+
+export interface RunRecord {
+  at: string;
+  trigger: string;
+  provider?: string;
+  ok: boolean;
+  error?: string;
+  seeded?: boolean;
+  found?: number;
+  readable?: number;
+  new?: number;
+  mailed?: boolean;
+  durationMs?: number;
+  recipients?: string[];
+  chapters?: { series: string; label: string; url: string }[];
+}
+
+export interface SeriesRecord {
+  title: string;
+  lastChapterLabel?: string;
+  lastChapterUrl?: string;
+  /** When MangaDex published the most recent chapter nabu has seen. */
+  lastChapterAt?: string;
+  /** When nabu last observed a new chapter for this series. */
+  lastSeenAt?: string;
+}
+
+export async function getRunLog(env: Env): Promise<RunRecord[]> {
+  return (await env.NABU_STATE.get<RunRecord[]>(KEY_RUN_LOG, "json")) ?? [];
+}
+
+export async function appendRunRecord(env: Env, record: RunRecord): Promise<void> {
+  const log = await getRunLog(env);
+  log.unshift(record);
+  await env.NABU_STATE.put(KEY_RUN_LOG, JSON.stringify(log.slice(0, RUN_LOG_LIMIT)));
+}
+
+export async function getSeriesIndex(env: Env): Promise<Record<string, SeriesRecord>> {
+  return (await env.NABU_STATE.get<Record<string, SeriesRecord>>(KEY_SERIES, "json")) ?? {};
+}
+
+export async function putSeriesIndex(
+  env: Env,
+  index: Record<string, SeriesRecord>,
+): Promise<void> {
+  await env.NABU_STATE.put(KEY_SERIES, JSON.stringify(index));
+}
+
+/**
+ * The recipient list, from KV when the dashboard has set one, otherwise seeded
+ * from the RECIPIENT_ADDRESS var so a fresh deploy still mails somewhere.
+ */
+export async function getRecipients(env: Env): Promise<string[]> {
+  const stored = await env.NABU_STATE.get<string[]>(KEY_RECIPIENTS, "json");
+  if (Array.isArray(stored) && stored.length > 0) return stored;
+  return parseAddresses(env.RECIPIENT_ADDRESS ?? "");
+}
+
+export async function setRecipients(env: Env, recipients: string[]): Promise<void> {
+  await env.NABU_STATE.put(KEY_RECIPIENTS, JSON.stringify(recipients));
+}
+
+/** True when the list is coming from the var rather than a dashboard edit. */
+export async function recipientsAreDefault(env: Env): Promise<boolean> {
+  const stored = await env.NABU_STATE.get<string[]>(KEY_RECIPIENTS, "json");
+  return !Array.isArray(stored) || stored.length === 0;
 }

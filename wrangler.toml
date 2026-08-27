@@ -17,12 +17,21 @@ MAIL_PROVIDER = "smtp2go"
 SENDER_ADDRESS = "service@isame12.no"
 # Optional display name on the From line.
 SENDER_NAME = "nabu"
-# Where the digest goes. Comma-separated for several.
+# Initial recipient(s), comma-separated. Once you edit the list in the admin
+# dashboard it is stored in KV and this var is only the fallback.
 RECIPIENT_ADDRESS = "leander@isame12.no"
 
 # --- feed -------------------------------------------------------------------
 # Comma-separated MangaDex language codes, in order of preference.
 LANGUAGES = "en"
+
+# Password for the admin dashboard at the Worker's URL, and the bearer token
+# for its JSON API. Without this the Worker serves 404 to all HTTP requests and
+# only the cron can drive it.
+[[secrets_store_secrets]]
+binding = "ADMIN_TOKEN"
+store_id = "7d16eedbb01c493ebbc6cf86aa891f12"
+secret_name = "AdminToken"
 
 # MangaDex personal-client credentials, as one JSON object:
 #   {"clientId":"personal-client-...","clientSecret":"..."}

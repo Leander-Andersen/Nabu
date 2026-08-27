@@ -48,8 +48,9 @@ export function sendDigest(
   subject: string,
   html: string,
   text: string,
+  recipients: string[],
 ): Promise<void> {
   return provider === "graph"
-    ? sendViaGraph(env, subject, html)
-    : sendViaSmtp2go(env, subject, html, text);
+    ? sendViaGraph(env, subject, html, recipients)
+    : sendViaSmtp2go(env, subject, html, text, recipients);
 }

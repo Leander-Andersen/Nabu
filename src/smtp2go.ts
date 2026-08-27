@@ -1,6 +1,6 @@
 import { USER_AGENT } from "./constants";
 import { requireSecret } from "./secrets";
-import { parseAddresses, safeText } from "./util";
+import { safeText } from "./util";
 import type { Env } from "./types";
 
 const SEND_ENDPOINT = "https://api.smtp2go.com/v3/email/send";
@@ -27,11 +27,10 @@ export async function sendViaSmtp2go(
   subject: string,
   html: string,
   text: string,
+  recipients: string[],
 ): Promise<void> {
   const apiKey = await requireSecret("SMTP2GO_API_KEY", env.SMTP2GO_API_KEY);
-
-  const recipients = parseAddresses(env.RECIPIENT_ADDRESS);
-  if (recipients.length === 0) throw new Error("RECIPIENT_ADDRESS is empty");
+  if (recipients.length === 0) throw new Error("no recipients configured");
 
   const res = await fetch(SEND_ENDPOINT, {
     method: "POST",

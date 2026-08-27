@@ -29,7 +29,12 @@ export interface Env {
   GRAPH_CLIENT_ID?: SecretRef;
   GRAPH_CLIENT_SECRET?: SecretRef;
 
-  /** Optional. When unset, the HTTP endpoint is disabled entirely (404). */
+  /**
+   * Password for the admin dashboard, and the bearer token for its API.
+   * When unset, the Worker serves nothing over HTTP (404) and only the cron
+   * can drive it. TRIGGER_SECRET is the older name for the same thing.
+   */
+  ADMIN_TOKEN?: SecretRef;
   TRIGGER_SECRET?: SecretRef;
 
   // --- vars (wrangler.toml) ---
@@ -97,7 +102,9 @@ export interface ChapterFeedResponse {
 /** A chapter flattened into everything the email needs. */
 export interface DigestItem {
   chapterId: string;
+  seriesId: string;
   seriesTitle: string;
+  publishAt: string;
   chapterLabel: string;
   chapterTitle: string | null;
   url: string;

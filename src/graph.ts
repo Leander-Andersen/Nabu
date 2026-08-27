@@ -1,6 +1,6 @@
 import { USER_AGENT } from "./constants";
 import { requireSecret } from "./secrets";
-import { parseAddresses, safeText } from "./util";
+import { safeText } from "./util";
 import type { Env } from "./types";
 
 const GRAPH_BASE = "https://graph.microsoft.com/v1.0";
@@ -36,10 +36,14 @@ async function getGraphToken(env: Env): Promise<string> {
   return token.access_token;
 }
 
-export async function sendViaGraph(env: Env, subject: string, html: string): Promise<void> {
+export async function sendViaGraph(
+  env: Env,
+  subject: string,
+  html: string,
+  recipients: string[],
+): Promise<void> {
   const accessToken = await getGraphToken(env);
-  const recipients = parseAddresses(env.RECIPIENT_ADDRESS);
-  if (recipients.length === 0) throw new Error("RECIPIENT_ADDRESS is empty");
+  if (recipients.length === 0) throw new Error("no recipients configured");
 
   const res = await fetch(
     `${GRAPH_BASE}/users/${encodeURIComponent(env.SENDER_ADDRESS)}/sendMail`,

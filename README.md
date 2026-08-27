@@ -358,11 +358,11 @@ npm run typecheck    # tsc --noEmit
 | `md_feed_truncated` | more than 500 chapters in one window; pagination hit its cap |
 | `run_failed` | the run threw; `last_run` was not advanced |
 
-**Manual run.** Only if `TRIGGER_SECRET` is set — otherwise the Worker answers 404 to all
-HTTP requests and only the cron can drive it.
+**Manual run.** From the dashboard's *Run now* button, or by hand:
 
 ```sh
-curl -H "Authorization: Bearer $TRIGGER_SECRET" https://nabu.<your-subdomain>.workers.dev
+curl -X POST -H "Authorization: Bearer $ADMIN_TOKEN" \
+  https://nabu.<your-subdomain>.workers.dev/api/run
 ```
 
 **State in KV.**
@@ -372,6 +372,9 @@ curl -H "Authorization: Bearer $TRIGGER_SECRET" https://nabu.<your-subdomain>.wo
 | `refresh_token` | rotated on every token request |
 | `last_run` | ISO timestamp; the next poll asks from here minus 60s of overlap |
 | `seen:{chapterId}` | dedupe guard, 7-day TTL |
+| `run_log` | last 50 runs, shown in the dashboard |
+| `series_index` | per-series last-chapter record |
+| `recipients` | recipient list, once edited in the dashboard |
 
 Deleting `last_run` makes the next run a seeding run again (24h back, no mail). Deleting
 `refresh_token` forces a fresh password grant. Neither is destructive.
@@ -380,6 +383,60 @@ Deleting `last_run` makes the next run a seeding run again (24h back, no mail). 
 so the next cron re-sends the same chapters. Nothing is lost until the send succeeds.
 
 ---
+
+## Admin dashboard
+
+Visit the Worker's URL. It serves a single page — no build step, no external assets —
+showing:
+
+- **Status and last run**, plus the provider, sender and languages in use.
+- **Run now**, with the run's full JSON summary rendered underneath: what it found, what
+  was new, whether mail went out, and every chapter in the digest as a link.
+- **Recipients**, add and remove, as many as you like. Changes take effect on the next
+  run — no redeploy.
+- **Series**, sorted by most recent chapter, each linking to it. *Sync followed series*
+  pulls your full follows list from MangaDex so quiet series appear too, rather than only
+  the ones that have published since you deployed.
+- **Runs** — the last 50, successes and failures, each with its error or its chapter list.
+
+The history is nabu's own, kept in KV. That avoids needing a Cloudflare API token to read
+Workers Logs, and it survives independently of log retention. `wrangler tail` still shows
+the live structured logs.
+
+### Access
+
+The page is gated on `ADMIN_TOKEN` — the value in the Secrets Store item `AdminToken`.
+
+- **With it unset the Worker serves 404 to every HTTP request** and only the cron can
+  drive it. That is the safe default if you would rather not expose a dashboard at all.
+- Signing in exchanges the token for an HMAC-signed session cookie
+  (`HttpOnly`, `Secure`, `SameSite=Strict`, 12 hours). The cookie carries nothing but an
+  expiry and cannot be forged without the secret.
+- The same token works as `Authorization: Bearer …` for the JSON API.
+- The password comparison is length-independent, so a wrong guess leaks no timing signal.
+
+That is honest single-password auth, which is proportionate for a personal tool on an
+unguessable `workers.dev` URL. **If you want it properly locked down, put
+[Cloudflare Access](https://developers.cloudflare.com/cloudflare-one/policies/access/) in
+front of the Worker** — you then get SSO, device posture and an audit log, and the
+password becomes a second factor rather than the only one.
+
+### API
+
+Every route takes `Authorization: Bearer $ADMIN_TOKEN`.
+
+| Route | Does |
+|---|---|
+| `GET /api/state` | runs, series, recipients, config in one payload |
+| `POST /api/run` | run now; returns the same summary the page shows |
+| `PUT /api/recipients` | `{"recipients":["a@b.co","c@d.co"]}` — validated, trimmed, deduped |
+| `POST /api/series/refresh` | pull the follows list from MangaDex |
+
+### A note on recipients
+
+Once you edit the list in the dashboard it lives in KV, and `RECIPIENT_ADDRESS` in
+[wrangler.toml](wrangler.toml) becomes just the initial seed — a redeploy will not
+overwrite your edits. The page says which of the two is in effect.
 
 ## Configuration reference
 
@@ -394,11 +451,12 @@ so the next cron re-sends the same chapters. Nothing is lost until the send succ
 | `GRAPH_TENANT_ID` | secret | M365 tenant — required when `MAIL_PROVIDER=graph` |
 | `GRAPH_CLIENT_ID` | secret | app registration — `graph` only |
 | `GRAPH_CLIENT_SECRET` | secret | app registration — `graph` only |
-| `TRIGGER_SECRET` | secret | *optional* — enables the manual HTTP trigger |
+| `ADMIN_TOKEN` | **Secrets Store** | dashboard password + API bearer token. Bound from store `7d16eedb…` / `AdminToken`. Unset ⇒ no HTTP surface at all |
+| `TRIGGER_SECRET` | secret | older name for `ADMIN_TOKEN`, still honoured |
 | `MAIL_PROVIDER` | var | `smtp2go` (default) or `graph` |
 | `SENDER_ADDRESS` | var | from-address; must be a verified sender on SMTP2GO |
 | `SENDER_NAME` | var | *optional* display name on the From line |
-| `RECIPIENT_ADDRESS` | var | where the digest goes |
+| `RECIPIENT_ADDRESS` | var | initial recipient(s); the dashboard's KV list wins once set |
 | `LANGUAGES` | var | default `en` |
 | `NABU_STATE` | KV | `refresh_token`, `last_run`, `seen:{chapterId}` |
 
