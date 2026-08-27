@@ -52,13 +52,29 @@ async function inspect(
 export async function collectDiagnostics(env: Env): Promise<SecretDiagnostic[]> {
   return Promise.all([
     inspect("SMTP2GO_API_KEY", env.SMTP2GO_API_KEY, (value) => {
+      // Checked before the prefix test: a quoted value starts with a quote, and
+      // "does not start with api-" would be a misleading way to say so.
+      if (/^["'].*["']$/.test(value)) {
+        return {
+          ok: false,
+          note: "wrapped in quote marks — store the bare key, no quotes around it",
+        };
+      }
+      if (/\s/.test(value)) {
+        return { ok: false, note: "contains a space or newline — likely a mangled paste" };
+      }
       if (!value.startsWith("api-")) {
         return {
           ok: false,
           note: 'does not start with "api-" — this looks like an SMTP username/password from "SMTP Users", not an API key from "API Keys"',
         };
       }
-      if (value.length < 20) return { ok: false, note: "starts with api- but looks truncated" };
+      if (value.length < 20) {
+        return {
+          ok: false,
+          note: "starts with api- but is too short — the list view masks the key, so copy it from the dialog shown when it is created",
+        };
+      }
       return { ok: true, note: "looks like an SMTP2GO API key" };
     }),
 
