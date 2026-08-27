@@ -171,6 +171,21 @@ const ago = (iso) => {
 
 const emptyRow = (text) => el("div", { cls: "empty", text });
 
+// A seeding run and a genuinely quiet run both end in "no email sent", but they
+// mean very different things — say which.
+function describeRun(ok, body) {
+  if (!ok) return body.error ? "Failed: " + body.error : "Failed.";
+  const s = body.summary;
+  if (!s) return "Done.";
+  if (s.mailed) return "Digest sent to " + (s.recipients || []).length + " recipient(s).";
+  if (s.seeded) {
+    return "First run: " + s.new + " chapter(s) marked as already seen, so the next " +
+           "digest only contains genuinely new ones. No email by design.";
+  }
+  if (s.found === 0) return "Nothing published since the last run.";
+  return "Ran — all " + s.found + " chapter(s) had already been sent.";
+}
+
 function renderRecipients() {
   const box = $("recipients");
   box.replaceChildren();
@@ -302,9 +317,7 @@ $("run").onclick = async () => {
     const pre = el("pre", { text: JSON.stringify(body.summary ?? body, null, 2) });
     if (!res.ok) pre.classList.add("err");
     $("run-result").append(pre);
-    $("run-note").textContent = res.ok
-      ? (body.summary?.mailed ? "Digest sent." : "Ran — nothing new to send.")
-      : "Failed.";
+    $("run-note").textContent = describeRun(res.ok, body);
     await load();
   } catch (err) {
     $("run-result").append(el("pre", { cls: "err", text: String(err) }));
