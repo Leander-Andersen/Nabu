@@ -139,6 +139,12 @@ export function renderDashboard(): string {
   </section>
 
   <section>
+    <h2>Credentials</h2>
+    <div class="panel" id="diagnostics"></div>
+    <p class="meta" style="margin-top:8px">Shape only — no secret value is ever read back or shown.</p>
+  </section>
+
+  <section>
     <h2>Runs</h2>
     <div class="panel" id="runs"></div>
   </section>
@@ -297,6 +303,25 @@ function renderSeries(series) {
   }
 }
 
+function renderDiagnostics(secrets) {
+  const box = $("diagnostics");
+  box.replaceChildren();
+  for (const d of secrets) {
+    const pill = el("span", {
+      cls: "pill " + (!d.present ? "bad" : d.looksRight ? "ok" : "warn"),
+      text: !d.present ? "missing" : d.looksRight ? "ok" : "suspect",
+    });
+    const left = el("div", {
+      cls: "grow",
+      children: [
+        el("div", { cls: "mono", text: d.name }),
+        el("div", { cls: "meta", text: d.note + (d.present ? "  ·  " + d.length + " chars  ·  " + d.source : "") }),
+      ],
+    });
+    box.append(el("div", { cls: "row", children: [left, pill] }));
+  }
+}
+
 function renderRuns(runs) {
   const box = $("runs");
   box.replaceChildren();
@@ -344,6 +369,10 @@ async function load() {
   const res = await fetch("/api/state");
   if (res.status === 401) { location.reload(); return; }
   state = await res.json();
+  fetch("/api/diagnostics")
+    .then((r) => r.json())
+    .then((d) => renderDiagnostics(d.secrets || []))
+    .catch(() => {});
   renderRecipients();
   renderSeries(state.series || []);
   renderRuns(state.runs || []);

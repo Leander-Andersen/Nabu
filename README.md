@@ -398,6 +398,11 @@ showing:
 - **Series**, sorted by most recent chapter, each linking to it. *Sync followed series*
   pulls your full follows list from MangaDex so quiet series appear too, rather than only
   the ones that have published since you deployed.
+- **Credentials** — whether each secret is present and *shaped* like what its provider
+  expects. No secret value is ever read back or displayed; Secrets Store does not permit
+  it, and this reports only length and plausibility. It exists because "the provider
+  rejected my key" otherwise gives you nothing to go on — this tells missing from
+  truncated from wrong-kind-of-credential.
 - **Runs** — the last 50, successes and failures, each with its error or its chapter list.
 
 The history is nabu's own, kept in KV. That avoids needing a Cloudflare API token to read
@@ -431,6 +436,7 @@ Every route takes `Authorization: Bearer $ADMIN_TOKEN`.
 | `GET /api/state` | runs, series, recipients, config in one payload |
 | `POST /api/run` | run now; returns the same summary the page shows |
 | `PUT /api/recipients` | `{"recipients":["a@b.co","c@d.co"]}` — validated, trimmed, deduped |
+| `GET /api/diagnostics` | shape of each configured secret — length and plausibility, never the value |
 | `POST /api/test-email` | `{"recipients":["a@b.co"]}`, or omit to test every configured address |
 | `POST /api/series/refresh` | pull the follows list from MangaDex |
 

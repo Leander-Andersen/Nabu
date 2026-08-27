@@ -7,6 +7,7 @@ import {
 } from "./auth";
 import { OVERLAP_SECONDS, SEED_WINDOW_HOURS } from "./constants";
 import { FAVICON_SVG, renderDashboard, renderLogin } from "./dashboard";
+import { collectDiagnostics } from "./diagnostics";
 import { buildHtml, buildSubject, buildText, buildTestEmail, toDigestItem } from "./digest";
 import { errorMessage, log } from "./log";
 import { assertMailConfig, sendDigest } from "./mail";
@@ -232,6 +233,10 @@ async function handleRequest(request: Request, env: Env): Promise<Response> {
         lastRun: lastRun?.toISOString() ?? null,
       },
     });
+  }
+
+  if (path === "/api/diagnostics" && request.method === "GET") {
+    return json({ secrets: await collectDiagnostics(env) });
   }
 
   if (path === "/api/run" && request.method === "POST") {
