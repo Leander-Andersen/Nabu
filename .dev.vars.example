@@ -1,0 +1,89 @@
+# Copy to `.dev.vars` and fill in — `wrangler dev` reads it, and it is gitignored.
+#
+# Production does NOT read this file. The secrets below go in with
+# `wrangler secret put <NAME>`; the vars at the bottom live in wrangler.toml.
+# See README.md for where each value comes from.
+
+# ============================================================================
+# MangaDex
+# ============================================================================
+# MangaDex has NO standalone API key. A "personal client" is the nearest thing
+# — their docs say it "functions similarly to an API key" — but it is a
+# clientId/clientSecret PAIR, and it cannot authenticate on its own: there is no
+# client_credentials flow, and the follows feed is user-scoped.
+#
+# In PRODUCTION these come from the Secrets Store item "MangaDexAPI" as one JSON
+# object, bound as MD_CREDENTIALS in wrangler.toml:
+#
+#   {"clientId":"personal-client-...","clientSecret":"..."}
+#
+# Add "username" and "password" to that object and nabu bootstraps itself.
+# Leave them out and it runs refresh-token-only — no account password stored
+# anywhere. See README "Running without your account password".
+#
+# For LOCAL dev either set MD_CREDENTIALS to the same JSON on one line:
+# MD_CREDENTIALS='{"clientId":"personal-client-...","clientSecret":"..."}'
+#
+# ...or use the individual fallbacks below. mangadex.org/settings -> API Clients;
+# the ID starts with "personal-client-", the secret is behind "Get Secret".
+MD_CLIENT_ID="personal-client-00000000-0000-0000-0000-000000000000-nabu"
+MD_CLIENT_SECRET="your-personal-client-secret"
+# Optional — only needed if you want nabu to bootstrap its own refresh token.
+# MD_USERNAME="your-mangadex-username"
+# MD_PASSWORD="your-mangadex-password"
+
+# ============================================================================
+# Mail — pick ONE provider with MAIL_PROVIDER below
+# ============================================================================
+
+# --- MAIL_PROVIDER="smtp2go" (default) --------------------------------------
+# NOTE: there is no SMTP host, port, username or password here, and that is not
+# an omission. Cloudflare blocks outbound TCP on port 25, so a Worker cannot
+# talk SMTP at all — nabu uses SMTP2GO's HTTP API instead. The port/TLS
+# settings on the SMTP2GO "SMTP Users" page do not apply to this path.
+#
+# In PRODUCTION the API key is NOT set here and NOT via `wrangler secret put`.
+# It comes from the account-level Secrets Store, bound in wrangler.toml:
+#
+#   [[secrets_store_secrets]]
+#   binding     = "SMTP2GO_API_KEY"
+#   store_id    = "7d16eedbb01c493ebbc6cf86aa891f12"
+#   secret_name = "smtp2goApiKey"
+#
+# For LOCAL `wrangler dev`, production Secrets Store values are unreachable by
+# design. Seed a local copy instead (no --remote means local):
+#
+#   wrangler secrets-store secret create 7d16eedbb01c493ebbc6cf86aa891f12 \
+#     --name smtp2goApiKey --scopes workers
+#
+# nabu reads secrets through readSecret(), which takes either a Secrets Store
+# binding or a plain string — so uncommenting the line below also works locally
+# if you drop the binding from wrangler.toml. The dashboard key starts "api-".
+# SMTP2GO_API_KEY="api-00000000000000000000000000000000"
+
+# --- MAIL_PROVIDER="graph" --------------------------------------------------
+# Entra ID app registration, app-only, Mail.Send, scoped by an application
+# access policy. Only needed if you switch MAIL_PROVIDER to "graph".
+# GRAPH_TENANT_ID="00000000-0000-0000-0000-000000000000"
+# GRAPH_CLIENT_ID="00000000-0000-0000-0000-000000000000"
+# GRAPH_CLIENT_SECRET="your-app-registration-client-secret"
+
+# ============================================================================
+# Optional
+# ============================================================================
+# Enables the manual "run now" HTTP endpoint:
+#   curl -H "Authorization: Bearer $TRIGGER_SECRET" https://nabu.<subdomain>.workers.dev
+# Leave unset and the Worker answers 404 to all HTTP requests.
+# Generate with: openssl rand -hex 32
+# TRIGGER_SECRET="a-long-random-string"
+
+# ============================================================================
+# Vars — these live in wrangler.toml [vars] in production.
+# Repeating them here lets `wrangler dev` run without editing wrangler.toml.
+# ============================================================================
+MAIL_PROVIDER="smtp2go"
+# For SMTP2GO this must be a verified sender on the account.
+SENDER_ADDRESS="nabu@isame12.no"
+SENDER_NAME="nabu"
+RECIPIENT_ADDRESS="leander@isame12.no"
+LANGUAGES="en"

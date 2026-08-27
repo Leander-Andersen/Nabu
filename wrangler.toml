@@ -1,0 +1,55 @@
+#:schema node_modules/wrangler/config-schema.json
+name = "nabu"
+main = "src/index.ts"
+compatibility_date = "2026-08-27"
+
+# Every 15 minutes. Manga releases aren't time-critical, but a short interval
+# keeps each digest small and readable.
+[triggers]
+crons = ["*/15 * * * *"]
+
+[vars]
+# --- mail -------------------------------------------------------------------
+# "smtp2go" (HTTP API, one secret) or "graph" (M365 app-only).
+MAIL_PROVIDER = "smtp2go"
+# From address. For SMTP2GO this must be a *verified sender* on the account —
+# verify the address or the whole isame12.no domain in Settings -> Verified Senders.
+SENDER_ADDRESS = "service@isame12.no"
+# Optional display name on the From line.
+SENDER_NAME = "nabu"
+# Where the digest goes. Comma-separated for several.
+RECIPIENT_ADDRESS = "leander@isame12.no"
+
+# --- feed -------------------------------------------------------------------
+# Comma-separated MangaDex language codes, in order of preference.
+LANGUAGES = "en"
+
+# MangaDex personal-client credentials, as one JSON object:
+#   {"clientId":"personal-client-...","clientSecret":"..."}
+# Optionally add "username" and "password" to let nabu bootstrap itself; leave
+# them out and it runs refresh-token-only (seed refresh_token in KV once — see
+# README "Running without your account password").
+[[secrets_store_secrets]]
+binding = "MD_CREDENTIALS"
+store_id = "7d16eedbb01c493ebbc6cf86aa891f12"
+secret_name = "MangaDexAPI"
+
+# SMTP2GO_API_KEY comes from the account-level Secrets Store, not `wrangler
+# secret put` — do not also set a Worker secret by this name, the binding names
+# would collide. The secret needs the "workers" scope to be bindable.
+#   wrangler secrets-store secret list 7d16eedbb01c493ebbc6cf86aa891f12 --remote
+[[secrets_store_secrets]]
+binding = "SMTP2GO_API_KEY"
+store_id = "7d16eedbb01c493ebbc6cf86aa891f12"
+secret_name = "smtp2goApiKey"
+
+# Holds refresh_token, last_run and seen:{chapterId}.
+[[kv_namespaces]]
+binding = "NABU_STATE"
+id = "96f694906c114a3d872b9ca50db39eb9"
+# Only needed for `wrangler dev --remote`:
+# wrangler kv namespace create NABU_STATE --preview
+# preview_id = "REPLACE_ME_KV_PREVIEW_ID"
+
+[observability]
+enabled = true
