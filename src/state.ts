@@ -136,3 +136,29 @@ export async function recipientsAreDefault(env: Env): Promise<boolean> {
   const stored = await env.NABU_STATE.get<string[]>(KEY_RECIPIENTS, "json");
   return !Array.isArray(stored) || stored.length === 0;
 }
+
+const KEY_SMTP2GO_REGION = "smtp2go_region";
+
+/**
+ * SMTP2GO keeps a separate keyspace per region, and the global endpoint routes
+ * by proximity to the caller — so a Worker can land on a region where the
+ * account does not exist and be told the API key "was not found". Pinning the
+ * region is the fix. Stored in KV so it is switchable without a redeploy.
+ */
+export const SMTP2GO_REGIONS = ["global", "us", "eu", "au"] as const;
+export type Smtp2goRegion = (typeof SMTP2GO_REGIONS)[number];
+
+export function isSmtp2goRegion(value: unknown): value is Smtp2goRegion {
+  return typeof value === "string" && (SMTP2GO_REGIONS as readonly string[]).includes(value);
+}
+
+export async function getSmtp2goRegion(env: Env): Promise<Smtp2goRegion> {
+  const stored = await env.NABU_STATE.get(KEY_SMTP2GO_REGION);
+  if (isSmtp2goRegion(stored)) return stored;
+  const configured = env.SMTP2GO_REGION?.trim().toLowerCase();
+  return isSmtp2goRegion(configured) ? configured : "global";
+}
+
+export async function setSmtp2goRegion(env: Env, region: Smtp2goRegion): Promise<void> {
+  await env.NABU_STATE.put(KEY_SMTP2GO_REGION, region);
+}

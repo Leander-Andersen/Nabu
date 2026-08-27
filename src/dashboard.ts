@@ -139,6 +139,14 @@ export function renderDashboard(): string {
   </section>
 
   <section>
+    <h2>SMTP2GO region</h2>
+    <div class="bar" id="regions"></div>
+    <p class="meta">SMTP2GO issues API keys per region. A key from the wrong region is
+      reported as "not found", not as a permission error. "Global" routes by whichever
+      region is nearest the Worker, so pin the one your account lives in.</p>
+  </section>
+
+  <section>
     <h2>Credentials</h2>
     <div class="panel" id="diagnostics"></div>
     <p class="meta" style="margin-top:8px">Shape only — no secret value is ever read back or shown.</p>
@@ -303,6 +311,28 @@ function renderSeries(series) {
   }
 }
 
+function renderRegions(config) {
+  const box = $("regions");
+  box.replaceChildren();
+  const labels = { global: "Global", us: "US", eu: "EU", au: "AU" };
+  for (const region of config.smtp2goRegions || []) {
+    const active = region === config.smtp2goRegion;
+    const button = el("button", { text: labels[region] || region });
+    if (active) button.className = "primary";
+    button.disabled = active;
+    button.onclick = async () => {
+      box.querySelectorAll("button").forEach((b) => (b.disabled = true));
+      await fetch("/api/smtp2go-region", {
+        method: "PUT",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ region }),
+      });
+      await load();
+    };
+    box.append(button);
+  }
+}
+
 function renderDiagnostics(secrets) {
   const box = $("diagnostics");
   box.replaceChildren();
@@ -378,9 +408,10 @@ async function load() {
   renderRuns(state.runs || []);
 
   const c = state.config || {};
+  renderRegions(c);
   $("config").textContent =
-    "via " + c.provider + " · from " + c.sender + " · languages " + c.languages +
-    " · last run " + ago(c.lastRun);
+    "via " + c.provider + (c.smtp2goRegion ? " (" + c.smtp2goRegion + ")" : "") +
+    " · from " + c.sender + " · languages " + c.languages + " · last run " + ago(c.lastRun);
   const last = (state.runs || [])[0];
   const status = $("status");
   status.className = "pill" + (!last ? "" : last.ok ? " ok" : " bad");

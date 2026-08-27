@@ -1,9 +1,20 @@
 import { USER_AGENT } from "./constants";
 import { requireSecret } from "./secrets";
+import { getSmtp2goRegion } from "./state";
+import type { Smtp2goRegion } from "./state";
 import { safeText } from "./util";
 import type { Env } from "./types";
 
-const SEND_ENDPOINT = "https://api.smtp2go.com/v3/email/send";
+/**
+ * Regional base URLs. SMTP2GO scopes API keys per region, and "global" routes by
+ * proximity to the caller — which for a Worker is wherever the request lands.
+ */
+const REGION_BASES: Record<Smtp2goRegion, string> = {
+  global: "https://api.smtp2go.com",
+  us: "https://us-api.smtp2go.com",
+  eu: "https://eu-api.smtp2go.com",
+  au: "https://au-api.smtp2go.com",
+};
 
 interface Smtp2goResponse {
   request_id?: string;
@@ -32,7 +43,8 @@ export async function sendViaSmtp2go(
   const apiKey = await requireSecret("SMTP2GO_API_KEY", env.SMTP2GO_API_KEY);
   if (recipients.length === 0) throw new Error("no recipients configured");
 
-  const res = await fetch(SEND_ENDPOINT, {
+  const region = await getSmtp2goRegion(env);
+  const res = await fetch(`${REGION_BASES[region]}/v3/email/send`, {
     method: "POST",
     headers: {
       "content-type": "application/json",
@@ -52,7 +64,14 @@ export async function sendViaSmtp2go(
   });
 
   if (!res.ok) {
-    throw new Error(`SMTP2GO returned ${res.status}: ${await safeText(res)}`);
+    const detail = await safeText(res);
+    // The single most confusing SMTP2GO failure: keys exist per region, so a
+    // valid key hitting the wrong region reads as "key not found".
+    const hint =
+      detail.includes("api_key") && region === "global"
+        ? ' — if your account is in a specific region, set it in the dashboard (SMTP2GO region); "global" routes by proximity and its keyspace differs'
+        : "";
+    throw new Error(`SMTP2GO (${region}) returned ${res.status}: ${detail}${hint}`);
   }
 
   // A 200 is not proof of delivery: a rejected recipient or an unverified
@@ -66,7 +85,7 @@ export async function sendViaSmtp2go(
       body.data?.error ??
       (body.data?.failures?.length ? JSON.stringify(body.data.failures) : "no detail");
     throw new Error(
-      `SMTP2GO accepted ${succeeded} and failed ${failed} recipient(s): ${detail}`,
+      `SMTP2GO (${region}) accepted ${succeeded} and failed ${failed} recipient(s): ${detail}`,
     );
   }
 }

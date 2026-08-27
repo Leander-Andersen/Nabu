@@ -20,6 +20,10 @@ import {
 } from "./mangadex";
 import {
   appendRunRecord,
+  getSmtp2goRegion,
+  isSmtp2goRegion,
+  setSmtp2goRegion,
+  SMTP2GO_REGIONS,
   filterUnseen,
   getLastRun,
   getRecipients,
@@ -212,12 +216,13 @@ async function handleRequest(request: Request, env: Env): Promise<Response> {
   }
 
   if (path === "/api/state" && request.method === "GET") {
-    const [runs, series, recipients, usingDefault, lastRun] = await Promise.all([
+    const [runs, series, recipients, usingDefault, lastRun, region] = await Promise.all([
       getRunLog(env),
       getSeriesIndex(env),
       getRecipients(env),
       recipientsAreDefault(env),
       getLastRun(env),
+      getSmtp2goRegion(env),
     ]);
     return json({
       runs,
@@ -231,6 +236,8 @@ async function handleRequest(request: Request, env: Env): Promise<Response> {
         sender: env.SENDER_ADDRESS,
         languages: env.LANGUAGES,
         lastRun: lastRun?.toISOString() ?? null,
+        smtp2goRegion: region,
+        smtp2goRegions: SMTP2GO_REGIONS,
       },
     });
   }
@@ -315,6 +322,16 @@ async function handleRequest(request: Request, env: Env): Promise<Response> {
       failed: results.filter((r) => !r.ok).length,
     });
     return json({ ok: results.every((r) => r.ok), results });
+  }
+
+  if (path === "/api/smtp2go-region" && request.method === "PUT") {
+    const body = (await request.json().catch(() => null)) as { region?: unknown } | null;
+    if (!isSmtp2goRegion(body?.region)) {
+      return json({ error: `region must be one of: ${SMTP2GO_REGIONS.join(", ")}` }, 400);
+    }
+    await setSmtp2goRegion(env, body.region);
+    log("smtp2go_region_set", { region: body.region });
+    return json({ ok: true, region: body.region });
   }
 
   if (path === "/api/series/refresh" && request.method === "POST") {

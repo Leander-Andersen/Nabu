@@ -194,6 +194,28 @@ apply here.
 
 That is the whole setup: one credential, `SMTP2GO_API_KEY`.
 
+#### Pick your region
+
+SMTP2GO runs regional data centres and **issues API keys per region**. A key from the
+wrong one comes back as `An API User matching the passed 'api_key' was not found` — which
+reads like a bad key, not a wrong endpoint, and is the single most confusing failure here.
+
+| Region | Base URL |
+|---|---|
+| Global (default) | `https://api.smtp2go.com/v3/` |
+| US | `https://us-api.smtp2go.com/v3/` |
+| EU | `https://eu-api.smtp2go.com/v3/` |
+| AU | `https://au-api.smtp2go.com/v3/` |
+
+"Global" is not a superset — it routes to whichever region is nearest the *caller*, and
+for a Worker that is wherever Cloudflare happens to run the request. If your account is
+regional (console at `app-eu.smtp2go.com`, say), pin the matching region or sends will
+fail unpredictably.
+
+Set it with the **SMTP2GO region** toggle in the dashboard, which stores it in KV.
+`SMTP2GO_REGION` in [wrangler.toml](wrangler.toml) is the initial value; the toggle wins
+once used.
+
 #### Where the API key lives
 
 It is held in the account-level **Secrets Store**, not as a per-Worker
@@ -375,6 +397,7 @@ curl -X POST -H "Authorization: Bearer $ADMIN_TOKEN" \
 | `run_log` | last 50 runs, shown in the dashboard |
 | `series_index` | per-series last-chapter record |
 | `recipients` | recipient list, once edited in the dashboard |
+| `smtp2go_region` | SMTP2GO region, once set in the dashboard |
 
 Deleting `last_run` makes the next run a seeding run again (24h back, no mail). Deleting
 `refresh_token` forces a fresh password grant. Neither is destructive.
@@ -398,6 +421,7 @@ showing:
 - **Series**, sorted by most recent chapter, each linking to it. *Sync followed series*
   pulls your full follows list from MangaDex so quiet series appear too, rather than only
   the ones that have published since you deployed.
+- **SMTP2GO region** — global / US / EU / AU, stored server-side in KV.
 - **Credentials** — whether each secret is present and *shaped* like what its provider
   expects. No secret value is ever read back or displayed; Secrets Store does not permit
   it, and this reports only length and plausibility. It exists because "the provider
@@ -437,6 +461,7 @@ Every route takes `Authorization: Bearer $ADMIN_TOKEN`.
 | `POST /api/run` | run now; returns the same summary the page shows |
 | `PUT /api/recipients` | `{"recipients":["a@b.co","c@d.co"]}` — validated, trimmed, deduped |
 | `GET /api/diagnostics` | shape of each configured secret — length and plausibility, never the value |
+| `PUT /api/smtp2go-region` | `{"region":"eu"}` — global, us, eu or au |
 | `POST /api/test-email` | `{"recipients":["a@b.co"]}`, or omit to test every configured address |
 | `POST /api/series/refresh` | pull the follows list from MangaDex |
 
@@ -473,6 +498,7 @@ overwrite your edits. The page says which of the two is in effect.
 | `ADMIN_TOKEN` | **Secrets Store** | dashboard password + API bearer token. Bound from store `7d16eedb…` / `AdminToken`. Unset ⇒ no HTTP surface at all |
 | `TRIGGER_SECRET` | secret | older name for `ADMIN_TOKEN`, still honoured |
 | `MAIL_PROVIDER` | var | `smtp2go` (default) or `graph` |
+| `SMTP2GO_REGION` | var | initial region: `global`/`us`/`eu`/`au`; the dashboard's KV value wins |
 | `SENDER_ADDRESS` | var | from-address; must be a verified sender on SMTP2GO |
 | `SENDER_NAME` | var | *optional* display name on the From line |
 | `RECIPIENT_ADDRESS` | var | initial recipient(s); the dashboard's KV list wins once set |

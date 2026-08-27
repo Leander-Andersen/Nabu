@@ -40,6 +40,12 @@ export interface Env {
   // --- vars (wrangler.toml) ---
   /** "smtp2go" (default) or "graph". */
   MAIL_PROVIDER?: string;
+  /**
+   * Initial SMTP2GO region: global | us | eu | au. Once set from the dashboard
+   * the KV value wins. SMTP2GO keys are region-scoped, so this must match the
+   * region your account lives in.
+   */
+  SMTP2GO_REGION?: string;
   SENDER_ADDRESS: string;
   /** Optional display name on the From line, e.g. "nabu". */
   SENDER_NAME?: string;

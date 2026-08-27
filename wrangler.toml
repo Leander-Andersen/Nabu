@@ -12,6 +12,9 @@ crons = ["*/15 * * * *"]
 # --- mail -------------------------------------------------------------------
 # "smtp2go" (HTTP API, one secret) or "graph" (M365 app-only).
 MAIL_PROVIDER = "smtp2go"
+# SMTP2GO region: global | us | eu | au. Keys are region-scoped. Overridden by
+# the dashboard toggle once set.
+SMTP2GO_REGION = "eu"
 # From address. For SMTP2GO this must be a *verified sender* on the account —
 # verify the address or the whole isame12.no domain in Settings -> Verified Senders.
 SENDER_ADDRESS = "service@isame12.no"
