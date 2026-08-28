@@ -1,4 +1,4 @@
-# nabu
+# Nabu
 
 A Cloudflare Worker that polls the MangaDex API on a cron, finds new chapters in your
 followed series, and emails you a digest about them via Microsoft Graph.
